@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -g -O0 -Wall -std=c++11
+CXXFLAGS = -g -O3 -Wall -std=c++11
 
 all: clean compile run
 
@@ -10,4 +10,4 @@ compile:
 	$(CXX) $(CXXFLAGS) main.cpp -o main
 
 run:
-	cat ./samples-Practice/1.in | ./main
+	cat ./samples-Practice/2.in | ./main

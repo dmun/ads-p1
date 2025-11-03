@@ -1,68 +1,146 @@
 #include <algorithm>
 #include <iostream>
 #include <stack>
+#include <vector>
 using namespace std;
 
 struct Graph {
     int num_vertices;
     vector<vector<pair<int, int>>> adj;
 
-  public:
     Graph(int vertices) : num_vertices(vertices) { adj.resize(vertices); }
 
     void add_edge(int v, int u, int value) {
-        adj[v].push_back(make_pair(u, value));
-        adj[u].push_back(make_pair(v, value));
+        adj[v].push_back({u, value});
+        adj[u].push_back({v, value});
     }
 
-    bool is_valid() {
-        vector<bool> valid_vertices(num_vertices, false);
-
+    int get_edge_count() {
+        int n = 0;
         for (int v = 0; v < num_vertices; v++) {
-            vector<bool> explored(num_vertices, false);
+            for (auto neighbor : adj[v]) {
+                int u = neighbor.first;
+                if (v < u)
+                    n++;
+            }
+        }
+        return n;
+    }
 
-            stack<int> frontier;
-            for (int i = 0; i < num_vertices && frontier.empty(); i++) {
-                auto neighbor = adj[v][i];
-                if (neighbor.second == 2) {
-                    frontier.push(neighbor.first);
+    bool is_connected() {
+        vector<bool> explored(num_vertices, false);
+
+        stack<int> frontier;
+        frontier.push(0);
+        int n = 0;
+
+        while (!frontier.empty()) {
+            int u = frontier.top();
+            frontier.pop();
+
+            for (auto w : adj[u]) {
+                if (!explored[w.first]) {
+                    explored[w.first] = true;
+                    frontier.push(w.first);
+                    n++;
                 }
             }
-
-            if (frontier.empty()) {
-                frontier.push(0);
-            }
-
-            while (!frontier.empty()) {
-                int u = frontier.top();
-                frontier.pop();
-
-                for (auto w : adj[u]) {
-                    if (!explored[w.first]) {
-                        explored[w.first] = true;
-                        frontier.push(w.first);
-                    }
-                }
-            }
-
-            valid_vertices[v] = all_of(explored.begin(), explored.end(),
-                                       [](bool b) { return b; });
         }
 
-        return all_of(valid_vertices.begin(), valid_vertices.end(),
-                      [](bool b) { return b; });
+        return n == num_vertices;
     }
 
-    void printGraph() {
+    void log() {
+        cout << "edges: " << get_edge_count() << endl;
         for (int i = 0; i < num_vertices; i++) {
             cout << i << " - ";
             for (auto neighbor : adj[i]) {
                 cout << neighbor.first << "(" << neighbor.second << ") ";
             }
-            cout << "\n";
+            cout << endl;
         }
+        cout << endl;
     }
 };
+
+struct UnionFind {
+    vector<int> parent;
+    int num_vertices;
+
+    UnionFind(int n) : num_vertices(n) {
+        parent.resize(n);
+        for (int i = 0; i < n; i++)
+            parent[i] = i;
+    }
+
+    int find(int v) {
+        while (parent[v] != v)
+            v = parent[v];
+        return v;
+    }
+
+    void unify(int v, int u) {
+        int root_v = find(v);
+        int root_u = find(u);
+        parent[root_u] = root_v;
+    }
+
+    bool connected(int v, int u) { return find(v) == find(u); }
+};
+
+Graph get_mst(const Graph &g) {
+    vector<pair<int, pair<int, int>>> edges;
+    Graph mst(g.num_vertices);
+
+    for (int v = 0; v < g.num_vertices; v++) {
+        for (auto neighbor : g.adj[v]) {
+            int u = neighbor.first;
+            int value = (neighbor.second == 2) ? 0 : 1;
+            if (v < u) {
+                edges.push_back({value, {v, u}});
+            }
+        }
+    }
+
+    sort(edges.begin(), edges.end());
+
+    UnionFind uf(g.num_vertices);
+
+    for (auto edge : edges) {
+        // cout << edge.first << endl;
+        int value = edge.first;
+        int v = edge.second.first;
+        int u = edge.second.second;
+        if (!uf.connected(v, u)) {
+            mst.add_edge(v, u, value);
+            uf.unify(v, u);
+        }
+    }
+
+    return mst;
+}
+
+int get_merged_edge_count(const Graph &g0, const Graph &g1) {
+    int n = 0;
+
+    for (int v = 0; v < g0.num_vertices; v++) {
+        for (auto neighbor : g0.adj[v]) {
+            int u = neighbor.first;
+            if (v < u)
+                n++;
+        }
+    }
+
+    for (int v = 0; v < g1.num_vertices; v++) {
+        for (auto neighbor : g1.adj[v]) {
+            int u = neighbor.first;
+            if (v < u && neighbor.second != 0)
+                n++;
+        }
+    }
+
+    return n;
+}
 
 int main(int argc, char *argv[]) {
     int S, R;
@@ -70,6 +148,7 @@ int main(int argc, char *argv[]) {
 
     Graph P(S); // pedestrian + both roads
     Graph B(S); // bus + both roads
+
     int s0, s1, T;
     while (cin >> s0 >> s1 >> T) {
         switch (T) {
@@ -86,9 +165,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    P.printGraph();
-    B.printGraph();
-    cout << "is_valid(): " << P.is_valid() << endl;
+    if (!P.is_connected() || !B.is_connected()) {
+        cout << -1 << endl;
+    } else {
+        int n = get_merged_edge_count(get_mst(P), get_mst(B));
+        cout << R - n << endl;
+    }
 
     return 0;
 }

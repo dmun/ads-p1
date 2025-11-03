@@ -1,0 +1,6 @@
+*.o
+report/*
+!report/*.tex
+!report/*.pdf
+*.dSYM
+main
