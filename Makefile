@@ -11,3 +11,9 @@ compile:
 
 run:
 	cat ./samples-Practice/2.in | ./main
+
+test:
+	./test.sh
+
+pdf:
+	docker compose up

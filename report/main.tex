@@ -13,13 +13,14 @@
 \usepackage{listings}
 \usepackage{hyperref}
 \usepackage{algorithm}
-\usepackage[noend]{algpseudocode}
+\usepackage[noend, indLines=false, beginLComment=//~,
+endLComment=]{algpseudocodex}
 \usepackage[svgnames]{xcolor}
 
 \newcommand{\instruction}[1]{\textcolor{blue}{#1}}
 
-\title{Title}
-\author{David van Munster}
+\title{Practical 1 Solution}
+\author{David van Munster (s1103638)}
 
 \makeatletter
 \let\thetitle\@title
@@ -46,73 +47,168 @@
   \begin{minipage}{0.4\textwidth}
     \begin{flushright} \large
       ~\\
-      s1103638
+      144
     \end{flushright}
   \end{minipage}\\[1 cm]
 \end{center}
 
-\noindent\instruction{This is a template for practical 1, all text in
-  blue and the pseudocode example may be removed. The report may have
-  at most 6 pages in the current format. The current sections and
-  subsections must be present in the report, additional subsections may
-  be added. Additionally, you may add examples, figures or pseudocode
-snippets (see Algorithm~\ref{pseudocode}).}
-
 \section{Explanation of the Algorithm}
 \subsection{Initialization}
-\instruction{How do you read in the data and initialize the required
-data structures?}
-
-\subsection{Algorithm Logic}
-\instruction{Explain what your approach is, and what the algorithm
-  does. Explain which data structures did you use and why. In case
-  you adapt existing algorithms, explain how and why you modified and
-incorporated it.}
+% \instruction{How do you read in the data and initialize the required
+% data structures?}
+The data is read using the standard input/output streams using the C++ standard
+library. Two graphs are used to store the stages and roads. Graph $P$ contains
+both $pedestrian$ and $both$ roads, while graph $B$ contains both $bus$ and
+$both$ roads. The graphs are represented as adjacency lists.
 
 \begin{algorithm}[h!]
-  \caption{Pseudocode example.}
-  \label{pseudocode}
+  \caption{Initialization.}
+  \label{initialization}
   \begin{algorithmic}[1]
-    \Function{Function}{arguments}
-    \State Step 1
-    \While{Condition 1 does not hold} F
-    \If{Condition 2}
-    \State \Return Yes
-    \Else
-    \State Step 2
+    \Function{Initialize}{Graph P, Graph B, stream Input}
+
+    \State int $S = \Call{Next}{Input}$
+    \State int $R = \Call{Next}{Input}$
+    \Statex
+
+    \State int $s_0, s_1, T$
+
+    \While{input is available}
+    \State $s_0 = \Call{Next}{Input}$
+    \State $s_1 = \Call{Next}{Input}$
+    \State $T = \Call{Next}{Input}$
+    \Statex
+
+    \If{$T == 0$}
+    \State \Call{AddEdge}{P, s_0, s_1, T}$
+    \ElsIf{$T == 1$}
+    \State \Call{AddEdge}{B, s_0, s_1, T}$
+    \ElsIf{$T == 2$}
+    \State \Call{AddEdge}{P, s_0, s_1, T}$
+    \State \Call{AddEdge}{B, s_0, s_1, T}$
     \EndIf
     \EndWhile
-    \State \Return No
+
+    \EndFunction
+  \end{algorithmic}
+\end{algorithm}
+\subsection{Algorithm Logic}
+The algorithm maximizes roads to close by finding the Minimum Spanning Trees
+(MSTs) for both graphs and preserving only necessary roads. Roads
+of type $both$ are prioritized since they serve dual purposes.
+
+Two MSTs are generated using Kruskal's algorithm with a Union-Find data
+structure. Edge weights are assigned as 0 for $both$ roads and 1 for
+$pedestrian$ or $bus$ roads, ensuring $both$ roads are selected first. The MSTs
+guarantee connectivity with minimal edges for each mode.
+
+The merged edge count sums all edges from $\text{MST}_P$ and non-zero weight
+edges from $\text{MST}_B$, avoiding double-counting of $both$ roads. The answer
+is $R - n$ where $n$ is the merged count.
+
+\begin{algorithm}[h!]
+  \caption{Main Algorithm}
+  \label{main-algorithm}
+  \begin{algorithmic}[1]
+    \Function{Algorithm}{int S, int R}
+    \LComment{Initialize.}
+
+    \State $P, B \gets \Call{Graph}{S}$
+    \State \Call{Initialize}{P, B}
+
+    \Statex
+    \LComment{Check connection.}
+
+    \If{$P$ or $B$ is disconnected}
+    \State \Return -1
+    \EndIf
+
+    \Statex
+    \LComment{Generate MSTs.}
+
+    \State $\text{MST}_P \gets \Call{GenerateMST}{P}$
+    \State $\text{MST}_B \gets \Call{GenerateMST}{B}$
+
+    \State \Return R - \Call{GetMergedEdgeCount}{MST$_P$, MST$_B$}
     \EndFunction
   \end{algorithmic}
 \end{algorithm}
 
 \subsection{Returning the Answer}
-\instruction{When does the algorithm terminate and what is returned?}
+The algorithm terminates after generating both MSTs and computing the merged
+edge count. If any graph is disconnected, $-1$ is returned early.
+Otherwise, the number of roads to close is computed as $R - n$ where $R$ is the
+total number of roads and $n$ is the count of non-overlapping edges in both
+MSTs.
 
 \subsection{Optimizations}
-\instruction{Did you use any special tricks to make the algorithm
-faster in special cases based on the problem statement?}
+The algorithm terminates early in case of a disconnected graph, avoiding
+unnecessary computation of the MSTs.
+
+Since each graph only contains two different types of weights, the sorting
+algorithm in the \verb|generate_mst()| function can be simplified a lot. We can
+put each edge in one of two edge lists without having to do any comparisons. We
+can simply iterate through the first edge list with all the priority edges.
+This reduces the complexity from $O(R \log R)$ to $O(R)$.
 
 \section{Correctness Analysis}
-\instruction{Why is your algorithm correct? Provide precise
-  arguments, supported by formal reasoning whenever needed. Think of an
-  expanation to a critical colleague why your algorithm is correct. For
-  examples, take a look at correctness proofs in the textbook
-(Algorithms Illuminated) or solutions to the weekly exercises.}
+The correctness relies on the following properties:
+
+\textbf{MST:} Kruskal's algorithm generates a MST by greedily selecting edges
+with a priority avoiding cycles. With weights 0 for $both$ and 1 for specific
+roads, the algorithm minimizes the number of roads while keeping the stages
+connected.
+
+\textbf{Connectivity:} An MST contains $S-1$ edges and connects
+all vertices. If graph P or B is disconnected, no valid solution exists,
+correctly returning $-1$. When both are connected, their MSTs guarantee minimal
+connectivity for each mode.
+
+\textbf{Edges:} Edges of type $both$ appear in both $\text{MST}_P$ and
+$\text{MST}_B$ with weight 0 in the MST representation. The merged count adds
+all edges from $\text{MST}_P$ and only non-zero edges from $\text{MST}_B$,
+correctly accounting for shared roads exactly once. The remaining $R - n$ roads
+can be closed without affecting connectivity.
 
 \section{Complexity Analysis}
-\instruction{What is the big O complexity of your algorithm
-  (including reading in the data and making the data structure)? The
-  analysis should be written in terms of the given input parameters.
-  For example, if the input includes sets $V$ of vertices and $E$ of
-  edges the complexity analysis should result in a big-Oh complexity
-using $V$ and $E$. Include an explanation of your answer.}
+Let $S$ be the number of stages and $R$ be the number of roads.
+
+\textbf{Initialization:} Reading input and constructing adjacency lists takes
+$O(R)$ time, as each road is added to at most two graphs.
+
+\textbf{Connectivity Check:} Depth-first search on each graph visits all
+vertices and edges, requiring $O(S + R)$ time per graph, thus $O(S + R)$ total.
+
+\textbf{MST Generation:} For each graph, sorting edges takes $O(R)$ time.
+Processing edges with Union-Find operations takes $O(R \log S)$ time, as each
+find and union operation has $O(\log S)$ complexity. Therefore, MST generation
+takes $O(R \log S)$ per graph.
+
+\textbf{Merged Count:} Iterating over MST edges takes $O(S)$ since each MST has
+at most $S-1$ edges.
+
+The overall complexity is $O(S + R + R \log S) = O(R \log S)$ when $R$ is
+significant, dominated by the Union-Find operations in MST generation.
 
 \section{Reflection}
-\instruction{Briefly reflect on the project. For example, you can
-  write about how easy it was to find a suitable algorithm? Or if your
-  algorithm is not always correct on DOMjudge, why do you think you get
-wrong answers? Or if there are of additional ways to speed up the algorithm?}
+Finding a suitable algorithm was in hindsight very doable,
+however during experimentation you get to experience the advantages and
+disadvantages of the different data structures, representations, etc. which
+were quite overwhelming to apply practically.
+
+It was also needed to look at the problem with a different perspective. The
+initial idea of removing unneeded edges did not click until it was reformulated
+as `finding the smallest trees'.
+
+% The problem naturally reduces to finding minimum spanning trees once the dual
+% graph representation is established. Two key insights emerged: prioritizing
+% $both$ roads through edge weighting rather than post-processing, and exploiting
+% the binary weight domain to replace comparison-based sorting with constant-time
+% bucketing.
+
+% The connectivity check could theoretically be integrated into MST generation to
+% avoid redundant traversals. However, with both operations being $O(S + R)$, the
+% practical benefit is minimal compared to the clarity gained by separating
+% concerns.
 
 \end{document}

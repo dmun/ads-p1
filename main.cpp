@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <iostream>
 #include <stack>
 #include <vector>
@@ -89,31 +88,36 @@ struct UnionFind {
 };
 
 Graph get_mst(const Graph &g) {
-    vector<pair<int, pair<int, int>>> edges;
+    vector<pair<int, int>> edges0;
+    vector<pair<int, int>> edges1;
     Graph mst(g.num_vertices);
 
     for (int v = 0; v < g.num_vertices; v++) {
         for (auto neighbor : g.adj[v]) {
             int u = neighbor.first;
-            int value = (neighbor.second == 2) ? 0 : 1;
+            int value = neighbor.second;
             if (v < u) {
-                edges.push_back({value, {v, u}});
+                if (value == 2)
+                    edges0.push_back({v, u});
+                else
+                    edges1.push_back({v, u});
             }
         }
     }
 
-    sort(edges.begin(), edges.end());
-
     UnionFind uf(g.num_vertices);
 
-    for (auto edge : edges) {
-        // cout << edge.first << endl;
-        int value = edge.first;
-        int v = edge.second.first;
-        int u = edge.second.second;
-        if (!uf.connected(v, u)) {
-            mst.add_edge(v, u, value);
-            uf.unify(v, u);
+    for (auto edge : edges0) {
+        if (!uf.connected(edge.first, edge.second)) {
+            mst.add_edge(edge.first, edge.second, 0);
+            uf.unify(edge.first, edge.second);
+        }
+    }
+
+    for (auto edge : edges1) {
+        if (!uf.connected(edge.first, edge.second)) {
+            mst.add_edge(edge.first, edge.second, 1);
+            uf.unify(edge.first, edge.second);
         }
     }
 
